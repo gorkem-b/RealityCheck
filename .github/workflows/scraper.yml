@@ -84,13 +84,13 @@ jobs:
       # Step 1: Clone the repository onto the runner.
       # actions/checkout@v4 is the official GitHub action for cloning.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Step 2: Install Python 3.10 with pip caching enabled.
       # The cache key includes the hash of requirements.txt, so the
       # cache busts automatically when dependencies change.
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10'
           cache: 'pip'
