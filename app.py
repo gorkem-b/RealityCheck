@@ -650,10 +650,10 @@ def main():
     """
     try:
         df = load_data()
-    except Exception:
+    except Exception as e:
         st.error(
-            "Failed to connect to the database. The database may be "
-            "unavailable or the connection string may be incorrect. "
+            "Failed to connect to the database. The exact error is:\n\n"
+            f"`{str(e)}`\n\n"
             "Please check the DATABASE_URL environment variable and try again."
         )
         return    # Stop rendering — nothing works without data
