@@ -90,7 +90,7 @@ import pandas as pd  # DataFrame — spreadsheet-like data structure
 import plotly.graph_objects as go  # Plotly's "graph objects" API (lower-level than express)
 import streamlit as st  # Web dashboard framework
 
-from scraper.db import fetch_all_jobs, get_engine
+from scraper.db import fetch_all_jobs, get_engine, init_db
 from scraper.utils import load_env
 
 # ═══════════════════════════════════════════════════════════════════
@@ -135,6 +135,7 @@ def load_data() -> pd.DataFrame:
     create separate cache entries per argument combination.
     """
     engine = get_engine()
+    init_db(engine)
     return fetch_all_jobs(engine)
 
 
