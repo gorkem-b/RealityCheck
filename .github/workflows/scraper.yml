@@ -84,13 +84,13 @@ jobs:
       # Step 1: Clone the repository onto the runner.
       # actions/checkout@v4 is the official GitHub action for cloning.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       # Step 2: Install Python 3.10 with pip caching enabled.
       # The cache key includes the hash of requirements.txt, so the
       # cache busts automatically when dependencies change.
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip'
@@ -116,7 +116,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::DATABASE_URL secret is not set in GitHub Actions. Please add it in Settings -> Secrets and variables -> Actions."
+            echo "::error::DATABASE_URL secret is not set. Add it in Settings -> Secrets and variables -> Actions."
             exit 1
           fi
-          python -m scraper.batch --init-db --limit 100
+          echo "DATABASE_URL is set (length: ${#DATABASE_URL})"
+          python -m scraper.batch --init-db --limit 100 2>&1
