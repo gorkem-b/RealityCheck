@@ -61,23 +61,19 @@ def load_env():
 
 def get_database_url() -> str:
     """
-    Retrieve the DATABASE_URL connection string from environment variables.
-
-    Returns:
-        A PostgreSQL connection URI like:
-        postgresql://user:password@host:5432/dbname?sslmode=require
-
-    Raises:
-        RuntimeError: If DATABASE_URL is not set. This is a *fail-fast*
-        strategy — crashing immediately with a clear error message is
-        better than silently returning None and causing mysterious bugs
-        later (a pattern called "don't propagate sentinel values").
-
-    The URI format is defined by RFC 3986. PostgreSQL-specific:
-        - user:password@host:port/dbname
-        - ?sslmode=require  (forces TLS encryption — ALWAYS use in production)
+    Retrieve the DATABASE_URL connection string from environment variables
+    or Streamlit secrets.
     """
     url = os.getenv("DATABASE_URL")
+    
+    # Fallback to Streamlit secrets if running in Streamlit Cloud
+    if not url:
+        try:
+            import streamlit as st
+            url = st.secrets.get("DATABASE_URL")
+        except Exception:
+            pass
+
     if not url:
         raise RuntimeError(
             "DATABASE_URL environment variable is not set. "
