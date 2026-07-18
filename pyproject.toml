@@ -1,0 +1,115 @@
+#
+# RealityCheck — Project Configuration (pyproject.toml)
+# ======================================================
+#
+# This file is the central configuration for the entire Python project.
+# It replaces the old setup.py/setup.cfg/tox.ini pattern with a single
+# standard file (PEP 621). Tools that read this file:
+#
+#   - pip:              Reads [project] for package metadata
+#   - pytest:           Reads [tool.pytest.ini_options] for test config
+#   - coverage.py:      Reads [tool.coverage] for coverage config
+#   - ruff:             Reads [tool.ruff] for linting and formatting
+#
+# CS Concepts Demonstrated:
+#   - Convention over Configuration:
+#       pyproject.toml is a CONVENTION — all Python tools agree to read
+#       their configuration from this file. Before this convention,
+#       each tool had its own config file (setup.cfg, .flake8, .isort.cfg,
+#       .coveragerc, pytest.ini, tox.ini). pyproject.toml consolidates
+#       them all into one place.
+#
+#   - Linter Configuration:
+#       Ruff is a "meta-linter" that combines multiple Python linting
+#       tools into one. The [tool.ruff.lint.select] list specifies
+#       which rule categories to enable:
+#         E  = pycodestyle errors (style violations)
+#         W  = pycodestyle warnings (potential issues)
+#         F  = pyflakes (logical errors, undefined names)
+#         I  = isort (import ordering)
+#         B  = flake8-bugbear (common bugs and design problems)
+#         C4 = flake8-comprehensions (suggest better comprehensions)
+#         UP = pyupgrade (suggest modern Python syntax)
+#
+#   - Test Configuration:
+#       [tool.pytest.ini_options] configures pytest without needing
+#       a separate pytest.ini file. addopts are "additional options"
+#       that are always passed to pytest:
+#         -v            = verbose output (shows test names, not just dots)
+#         --tb=short    = short traceback format (more readable)
+#         --strict-markers = error on unknown markers (catches typos)
+#
+
+[project]
+name = "realitycheck"
+version = "1.0.0"
+description = "Automated LinkedIn junior software engineer job market monitor"
+requires-python = ">=3.10"      # Python 3.10 introduced the union type syntax (X | Y)
+readme = "README.md"
+
+# Entry points: these become executable commands when the package is installed
+# (pip install -e .). Currently not used directly — we use python -m scraper.batch
+# and streamlit run app.py instead.
+[project.scripts]
+realitycheck-scraper = "scraper.main:main"
+realitycheck-dashboard = "app:main"
+
+# ─── Pytest Configuration ─────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-v",                     # Verbose: show test function names in output
+    "--tb=short",             # Short traceback (file:line + assertion, but not full locals)
+    "--strict-markers",       # Error on unknown @pytest.mark decorators (catches typos)
+]
+pythonpath = ["."]            # Add project root to sys.path so scraper imports work
+
+# ─── Coverage Configuration ───────────────────────────────────────
+[tool.coverage.run]
+source = ["scraper", "app"]   # Only measure coverage of our source code (not tests or venv)
+omit = ["tests/*"]             # Don't count test files in coverage reports
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",                        # Conventional marker for untestable code
+    "if __name__ == .__main__.:",              # Entry points (tested by running, not unit tests)
+    "raise NotImplementedError",               # Placeholder methods
+]
+
+# ─── Ruff Linter Configuration ────────────────────────────────────
+[tool.ruff]
+target-version = "py310"       # Target Python version (affects pyupgrade suggestions)
+line-length = 100              # Max line length (PEP 8 says 79; we use 100 for readability)
+extend-exclude = [
+    ".git",
+    ".pytest_cache",
+    "__pycache__",
+    "venv",
+    ".venv",
+]
+
+[tool.ruff.lint]
+# Rule categories to enable (each letter is a plugin)
+select = [
+    "E",      # pycodestyle errors — basic style violations (indentation, blank lines, etc.)
+    "W",      # pycodestyle warnings — potential style issues
+    "F",      # pyflakes — logical errors (undefined variables, unused imports)
+    "I",      # isort — import statement ordering (stdlib → third-party → local)
+    "B",      # flake8-bugbear — common bug patterns (mutable default args, etc.)
+    "C4",     # flake8-comprehensions — recommend list/dict/set comprehensions
+    "UP",     # pyupgrade — modern Python syntax (f-strings, type hint syntax, etc.)
+]
+ignore = [
+    "E501",   # line-too-long (handled by the formatter's line-length setting instead)
+]
+
+# isort configuration: scraper is a "first-party" package (our code, not external)
+[tool.ruff.lint.isort]
+known-first-party = ["scraper"]
+
+# ─── Ruff Formatter Configuration ─────────────────────────────────
+[tool.ruff.format]
+quote-style = "double"                    # Use double quotes (PEP 257 for docstrings = triple-double)
+indent-style = "space"                    # Spaces, not tabs (PEP 8 standard)
+skip-magic-trailing-comma = false         # Don't force trailing commas to force multi-line
+line-ending = "auto"                      # Auto-detect OS line endings (LF on Linux, CRLF on Windows)

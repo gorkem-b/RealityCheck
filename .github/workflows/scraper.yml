@@ -1,0 +1,118 @@
+#
+# RealityCheck — GitHub Actions CI/CD Pipeline
+# ==============================================
+#
+# This workflow runs the LinkedIn job scraper automatically every day.
+#
+# CS Concepts Demonstrated:
+#   - CI/CD (Continuous Integration / Continuous Deployment):
+#       CI = automatically testing code on every change (push/PR).
+#       CD = automatically deploying code to production.
+#       This workflow is "Continuous Scraping" — a scheduled batch
+#       job that collects data on a cron schedule and persists it.
+#
+#   - Cron Scheduling:
+#       Cron is a time-based job scheduler in Unix-like operating systems.
+#       GitHub Actions uses cron syntax for schedule triggers:
+#         ┌───────────── minute (0-59)
+#         │ ┌───────────── hour (0-23)
+#         │ │ ┌───────────── day of month (1-31)
+#         │ │ │ ┌───────────── month (1-12 or JAN-DEC)
+#         │ │ │ │ ┌───────────── day of week (0-6 or SUN-SAT)
+#         │ │ │ │ │
+#         * * * * *
+#         '0 0 * * *' = midnight UTC every day
+#
+#   - Event-Driven Automation:
+#       The workflow triggers on TWO events (OR logic):
+#         1. schedule (cron): Runs automatically at midnight UTC
+#         2. workflow_dispatch: Manual trigger from GitHub's web UI
+#            (Actions tab → "Run Daily Job Scraper" → "Run workflow")
+#       This dual-trigger pattern means the scraper runs daily but
+#       can also be triggered manually for debugging or ad-hoc needs.
+#
+#   - Secrets Management:
+#       DATABASE_URL is stored as a GitHub Secret (Settings → Secrets
+#       and variables → Actions). It's injected into the runner as an
+#       environment variable. Secrets are:
+#         - Encrypted at rest and in transit
+#         - Never shown in logs (GitHub masks them in output)
+#         - Not accessible from forks (only from this repo)
+#       This means the database password is never in the source code.
+#
+#   - Build Caching:
+#       cache: 'pip' in setup-python caches pip downloads between runs.
+#       This speeds up the workflow because pip doesn't re-download
+#       packages that haven't changed. Caching strategies:
+#         - Keyed by OS + Python version + requirements.txt hash
+#         - Cache hit: dependencies install in ~5 seconds
+#         - Cache miss: dependencies install in ~30 seconds
+#
+#   - Docker/Container Fundamentals:
+#       runs-on: ubuntu-latest means the workflow runs on a fresh
+#       Ubuntu VM. Each run gets a clean environment — no state
+#       from previous runs. This is the "immutable infrastructure"
+#       principle: environments are created fresh, not mutated over time.
+#
+#       --with-deps in 'playwright install chromium --with-deps'
+#       installs system-level dependencies (libnss3, libatk, etc.)
+#       that Chromium needs to run. Without this, Playwright would fail
+#       with "browser executable not found" or missing library errors.
+#
+# Timeout rationale:
+#   timeout-minutes: 35 is set because:
+#     9 search combos × ~100 jobs each at ~3 min per combo = ~27 minutes
+#     Plus ~8 minutes buffer for network delays, slow LinkedIn pages,
+#     and cooldown periods between combos.
+#   Without a timeout, a hung scraper would consume GitHub Actions
+#   minutes indefinitely (billing: 2,000 free min/month for public repos).
+#
+
+name: Run Daily Job Scraper
+
+on:
+  schedule:
+    - cron: '0 0 * * *'       # Every day at 00:00 UTC (midnight)
+  workflow_dispatch:            # Manual trigger button in GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      # Step 1: Clone the repository onto the runner.
+      # actions/checkout@v4 is the official GitHub action for cloning.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install Python 3.10 with pip caching enabled.
+      # The cache key includes the hash of requirements.txt, so the
+      # cache busts automatically when dependencies change.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # Step 3: Install Python packages and Playwright browser binaries.
+      # playwright install chromium --with-deps:
+      #   - Downloads the Chromium binary (~150 MB)
+      #   - Installs system libraries Chromium needs (via apt-get)
+      #   - These libraries are NOT in the default Ubuntu runner image
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      # Step 4: Run the batch scraper against the production database.
+      # DATABASE_URL is injected from GitHub Secrets — it never appears
+      # in the source code, logs, or workflow file.
+      # --init-db ensures tables exist (safe to call multiple times).
+      # --limit 100 = 100 jobs per search keyword/location combo.
+      - name: Run Scraper (Batch)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python -m scraper.batch --init-db --limit 100
