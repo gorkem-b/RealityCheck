@@ -350,17 +350,23 @@ async def run_batch(
 
 async def main():
     """Module entry point — parse args, load combos, run batch."""
-    args = parse_args()
+    try:
+        args = parse_args()
 
-    combos = load_combos(args.config_file)
+        combos = load_combos(args.config_file)
 
-    await run_batch(
-        combos=combos,
-        limit=args.limit,
-        headless=not args.no_headless,
-        init_db_flag=args.init_db,
-        cooldown=args.cooldown,
-    )
+        await run_batch(
+            combos=combos,
+            limit=args.limit,
+            headless=not args.no_headless,
+            init_db_flag=args.init_db,
+            cooldown=args.cooldown,
+        )
+    except Exception as e:
+        import sys
+        # Print the error as a GitHub Actions annotation so it shows up in the summary
+        print(f"::error::Fatal error during scraping: {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
