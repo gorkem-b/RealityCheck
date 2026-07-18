@@ -115,4 +115,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set in GitHub Actions. Please add it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
           python -m scraper.batch --init-db --limit 100
